@@ -1,59 +1,118 @@
 import "./Sidebar.css";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useCallback } from "react";
 import MyContext from "./MyContext.jsx";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+import { v1 as uuidv1 } from "uuid";
 
 function Sidebar() {
-  const { allThreads, setAllThreads, setCurrThreadId } = useContext(MyContext);
-  const [loading, setLoading] = useState(false);
+  const {
+    allThreads,
+    setAllThreads,
+    currThreadId,
+    setNewChat,
+    setPrompt,
+    setReply,
+    setCurrThreadId,
+    setPrevChats,
+  } = useContext(MyContext);
 
   const getAllThreads = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE}/thread`);
+      const response = await fetch(
+        "https://velora-ai-backend.onrender.com/api/thread"
+      );
       const res = await response.json();
-
       const filteredData = res.map((thread) => ({
         threadId: thread.threadId,
         title: thread.title,
       }));
-
       setAllThreads(filteredData);
-      setLoading(false);
     } catch (err) {
-      console.error("Error fetching threads:", err);
-      setLoading(false);
+      console.log(err);
     }
   }, [setAllThreads]);
 
   useEffect(() => {
     getAllThreads();
-  }, [getAllThreads]);
+  }, [currThreadId, getAllThreads]);
 
-  const handleClick = (threadId) => {
-    setCurrThreadId(threadId);
+  const createNewChat = () => {
+    setNewChat(true);
+    setPrompt("");
+    setReply(null);
+    setCurrThreadId(uuidv1());
+    setPrevChats([]);
+  };
+
+  const changeThread = async (newThreadId) => {
+    setCurrThreadId(newThreadId);
+
+    try {
+      const response = await fetch(
+        `https://velora-ai-backend.onrender.com/api/thread/${newThreadId}`
+      );
+      const res = await response.json();
+      console.log(res);
+      setPrevChats(res);
+      setNewChat(false);
+      setReply(null);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const deleteThread = async (threadId) => {
+    try {
+      const response = await fetch(
+        `https://velora-ai-backend.onrender.com/api/thread/${threadId}`,
+        { method: "DELETE" }
+      );
+      const res = await response.json();
+      console.log(res);
+
+      setAllThreads((prev) =>
+        prev.filter((thread) => thread.threadId !== threadId)
+      );
+
+      if (threadId === currThreadId) {
+        createNewChat();
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   return (
-    <div className="sidebar">
-      <h2 className="sidebar-title">All Chats</h2>
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <ul className="thread-list">
-          {allThreads.map((thread) => (
-            <li
-              key={thread.threadId}
-              onClick={() => handleClick(thread.threadId)}
-              className="thread-item"
-            >
-              {thread.title}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <section className="sidebar">
+      <button onClick={createNewChat}>
+        <img src="src/assets/logo.png" alt="gpt logo" className="logo" />
+        <span>
+          <i className="fa-solid fa-pen-to-square"></i>
+        </span>
+      </button>
+
+      <ul className="history">
+        {allThreads?.map((thread, idx) => (
+          <li
+            key={idx}
+            onClick={() => changeThread(thread.threadId)}
+            className={thread.threadId === currThreadId ? "highlighted" : ""}
+          >
+            {thread.title}
+            <i
+              className="fa-solid fa-trash"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteThread(thread.threadId);
+              }}
+            ></i>
+          </li>
+        ))}
+      </ul>
+
+      <div className="sign">
+        <p>By Gagandeep Singh &hearts;</p>
+      </div>
+    </section>
   );
 }
 
