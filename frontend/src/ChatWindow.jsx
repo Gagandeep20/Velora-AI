@@ -18,6 +18,8 @@ function ChatWindow() {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const getReply = async () => {
     if (!prompt.trim()) return;
 
@@ -38,21 +40,27 @@ function ChatWindow() {
     };
 
     try {
-      const response = await fetch("http://localhost:8080/api/chat", options);
+      const response = await fetch(`${API_URL}/api/chat`, options);
       const res = await response.json();
       console.log(res);
 
-      setReply(res.reply);
+      if (res.reply) {
+        setReply(res.reply);
 
-      setPrevChats((prevChats) => [
-        ...prevChats,
-        { role: "user", content: prompt },
-        { role: "assistant", content: res.reply },
-      ]);
+        setPrevChats((prevChats) => [
+          ...prevChats,
+          { role: "user", content: prompt },
+          { role: "assistant", content: res.reply },
+        ]);
+      } else if (res.error) {
+        console.error("Backend error:", res.error);
+        setReply("Something went wrong. Please try again.");
+      }
 
       setPrompt("");
     } catch (err) {
-      console.log(err);
+      console.log("Network error:", err);
+      setReply("Failed to connect. Please try again.");
     }
     setLoading(false);
   };
